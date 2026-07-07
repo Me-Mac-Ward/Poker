@@ -1,5 +1,7 @@
 # Here is my poker dealer software
 
+Poker game simulator in main2
+
 ## To-do:
 - Pre showdown info e.g. pot size
 - Hand comparison
