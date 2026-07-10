@@ -276,6 +276,7 @@ class PokerGame:
         self.gameState = "River"
         self.bettingRound()
 
+        print(f"Pot size: {self.pot}")
 
 game = PokerGame([("Player1", 1000), ("Player2", 1000), ("Player3", 1000)])
 game.startHand()
