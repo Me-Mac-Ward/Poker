@@ -47,6 +47,7 @@ class PokerGame:
 
         self.gameState = "null"
         self.roundMaxBet = 0
+        self.minimumRaiseSize = self.bigBlind
 
 ################################################################################
 ### Formatting
@@ -79,17 +80,29 @@ class PokerGame:
         if bet == -1:
             player.isFolded = True
             return True
+        
+        if bet < 0:
+            print(f"Invalid bet, please enter a positive number.")
+            return False
 
-        if bet == player.chips:
+        if bet == player.chips and bet  > 0:
             player.isAllIn = True
+            return True
+        
+        if bet > player.chips:
+            print(f"Invalid bet, please put exact chip value for all-in.")
+            return False
+        
+        if player.currentBet + bet == self.roundMaxBet:
+            print(f"{player} calls.")
             return True
         
         if player.currentBet + bet < self.roundMaxBet:
             print(f"Invalid bet.")
             return False
         
-        if bet > player.chips:
-            print(f"Invalid bet, please put exact chip value for all-in.")
+        if player.currentBet + bet < self.roundMaxBet + self.minimumRaiseSize:
+            print(f"Invalid raise, minimum raise is ${self.minimumRaiseSize}, you to enter at least ${self.roundMaxBet + self.minimumRaiseSize - player.currentBet} to raise.")
             return False
         
         return True
@@ -111,40 +124,49 @@ class PokerGame:
         if (player.isFolded or player.isAllIn):
             self.advancePlayer()
             return
-        
+
         print(f"\n{player.name}'s turn")
         self.printPlayerStatus()
         print(f"Player hand: {player.hand} | Community cards: {self.communityCards}")
 
         bet = self.getPlayerAction(player)
 
-        # If folded this turn
+        # If folded this turn
         if bet == -1:
             player.hasActedThisRound = True
             self.advancePlayer()
             return
-        
+
         # Apply their bet
         player.chips -= bet
         player.currentBet += bet
         self.pot += bet
         player.hasActedThisRound = True
 
-        # If raised this turn
+        # If they increased the maximum bet
         if player.currentBet > self.roundMaxBet:
+            raiseAmount = player.currentBet - self.roundMaxBet
+
+            # Full raise - reopen betting and update minimum raise size
+            if raiseAmount >= self.minimumRaiseSize:
+                self.minimumRaiseSize = raiseAmount
+
+                for p in self.players:
+                    if not p.isFolded and not p.isAllIn:
+                        p.hasActedThisRound = False
+
+                player.hasActedThisRound = True
+
+            # Any raise updates the amount to call
             self.roundMaxBet = player.currentBet
-            for p in self.players:
-                if ((not p.isFolded) and (not p.isAllIn)):
-                    p.hasActedThisRound = False
-            player.hasActedThisRound = True
 
         self.advancePlayer()
-
 ################################################################################
 ### Preparing and Ending a Round
 ################################################################################
     def resetBettingRound(self):
         self.roundMaxBet = 0
+        self.minimumRaiseSize = self.bigBlind
         self.currentPlayerPosition = 0
         for player in self.players:
             player.currentBet = 0
@@ -182,18 +204,33 @@ class PokerGame:
         sb = self.players[0]
         bb = self.players[1]
 
-        sb.chips -= self.smallBlind
-        sb.currentBet = self.smallBlind
-        print(f"Player {sb.name} posted small blind of {self.smallBlind}.")
-        self.advancePlayer()
+        if sb.chips >= self.smallBlind:
+            sb.chips -= self.smallBlind
+            sb.currentBet = self.smallBlind
+            print(f"Player {sb.name} posted small blind of {self.smallBlind}.")
+            self.advancePlayer()
+        else:
+            sb.currentBet = sb.chips
+            print(f"Player {sb.name} posted an all-in small blind of {sb.chips}.")
+            sb.chips = 0
+            sb.isAllIn = True
+            self.advancePlayer()
 
-        bb.chips -= self.bigBlind
-        bb.currentBet = self.bigBlind
-        print(f"Player {bb.name} posted big blind of {self.bigBlind}.")
-        self.advancePlayer()
+        if bb.chips >= self.bigBlind:
+            bb.chips -= self.bigBlind
+            bb.currentBet = self.bigBlind
+            print(f"Player {bb.name} posted big blind of {self.bigBlind}.")
+            self.minimumRaiseSize = self.bigBlind
+            self.advancePlayer()
+        else:
+            bb.currentBet = bb.chips
+            print(f"Player {bb.name} posted an all-in big blind of {bb.chips}.")
+            bb.chips = 0
+            bb.isAllIn = True
+            self.advancePlayer()
 
-        self.pot += self.smallBlind + self.bigBlind
-        self.roundMaxBet = self.bigBlind
+        self.pot += sb.currentBet + bb.currentBet
+        self.roundMaxBet = max(sb.currentBet, bb.currentBet)
 
     def dealFlop(self):
         self.resetBettingRound()
@@ -217,6 +254,7 @@ class PokerGame:
         self.deck = newDeck()
         self.communityCards = []
         self.pot = 0
+        self.minimumRaiseSize = self.bigBlind
 
         for player in self.players:
             player.resetHand()

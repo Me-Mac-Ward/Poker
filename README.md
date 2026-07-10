@@ -1,7 +1,7 @@
 # Here is my poker dealer software
 
 Poker game simulator in main2
-need to add min raise size and rules
+- need to add min raise size and rules
 
 ## To-do:
 - Pre showdown info e.g. pot size
